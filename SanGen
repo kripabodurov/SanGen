@@ -1,0 +1,413 @@
+#!/bin/bash
+#Version info - SanGen 1.0
+#Check README.md for Developer notes
+
+echo "SanGen 1.0"
+echo "Developed by Kripa Siddha Das, Bhaktivedanta Academy."
+echo "Please read the attached README.md file if you have any issues, or if this is your first time using SanGen."
+echo -e "\n Please remember that in order to get 100% accuracy, the calendar should start at least one full year prior to the present time."
+
+#cd to the directory of the script.
+my_name=$(basename -- "$0")
+dir=${0%$my_name}
+cd "$dir" || exit
+
+#------------------------------BEGIN INITIAL TESTS TO CHECK PREREQUISITES----------------------------------------
+
+#Check if gcal.txt exists; if not, inform and exit
+function b() {
+  echo -e "\n Missing gcal.txt file. Please read README.md. Press Ctrl+C to exit. Relaunch when ready.";
+  sleep 300000
+}
+FILE=gcal.txt
+if test -f "$FILE"; then
+    echo -e "\n"
+  else
+    b
+fi
+
+#Check if Ekadasis have fasting notes trailing; if yes, prompt to remove, exit.
+function c() {
+  echo -e   "\n Please find and remove all instances of (suitable for fasting) and (not suitable for fasting) from the gcal.txt file in order to continue. (Use Find & Replace) Be sure to replace them with a blank space, rather than just removing. Press Ctrl+C to exit. Relaunch when ready.";
+  sleep 300000
+}
+if grep -q "suitable for fasting" gcal.txt; then
+c
+fi
+
+#-------------------------------------BEGIN SANKALPA GENERATION--------------------------------------------------
+
+#Prompt to input the date
+  echo "Please strictly use the format for the date as in the following example:"
+  echo "07 Jan 2020"
+  echo "Please input the date you wish to make a sankalpa for below. Use t for today:"
+read -r date
+
+echo -e "\n Generating Sankalpa... \n"
+
+#Check if sankalpa is for today; if yes, write the date to $date
+if [[ $date = T || $date = t ]]; then
+  now=$(date)
+  now_mo="$(echo "$now" | awk '{print $2}')"
+  now_day="$(echo "$now" | awk '{print $3}')"
+  now_year="$(echo "$now" | awk '{print $6}')"
+  blank=" "
+  date="$now_day$blank$now_mo$blank$now_year"
+  #Check if date is single digit, if yes, add blank before
+  nd_len=${#now_day}
+  if [[ $nd_len = 1 ]]; then
+  date="$blank$date"
+  fi
+else
+  #Check if the first digit is 0; if yes, change to blank
+  initial="$(echo "$date" | head -c 1)"
+  if [[  $initial = "0"  ]]; then
+    date="${date:1}"
+    blank=" "
+    date="$blank$date"
+  fi
+fi
+
+#Check if the first digit is 0; if yes, change to blank
+initial="$(echo "$date" | head -c 1)"
+if [[  $initial = "0"  ]]; then
+  date="${date:1}"
+  blank=" "
+  date="$blank$date"
+fi
+
+#Find line corresponding to the date
+line="$(grep "$date" gcal.txt)"
+
+#Same as above but add line no, then write just the number to $no
+lineno="$(grep -n "$date" gcal.txt)"
+no="$(echo "$lineno" | awk -F: '{print $1}')"
+
+#Extract Weekday Variable
+vara_eng="$(echo "$line" | awk '{print $4}')"
+#Convert Weekday to Sanskrit
+if [[ $vara_eng = Mo ]]; then
+  vara=Soma
+elif [[ $vara_eng = Tu ]]; then
+  vara=Mangala
+elif [[ $vara_eng = We ]]; then
+  vara=Buddha
+elif [[ $vara_eng = Th ]]; then
+  vara=Guru
+elif [[ $vara_eng = Fr ]]; then
+  vara=Sukra
+elif [[ $vara_eng = Sa ]]; then
+  vara=Sani
+elif [[ $vara_eng = Su ]]; then
+  vara=Ravi
+fi
+
+#Extract Tithi Variable
+tithi="$(echo "$line" | awk '{print $5}')"
+
+#Extract Paksa Variable
+paksa_short="$(echo "$line" | awk '{print $6}')"
+#Convert Paksa to full Lenght
+if [[ $paksa_short = K ]]; then
+  paksa=Krishna
+elif [[ $paksa_short = G ]]; then
+  paksa=Gaura
+fi
+
+#Extract Naksatra Variable (nak)
+nak="$(echo "$line" | awk '{print $8}')"
+
+#Calculate Ayana Variable
+  #Create Variables for Date and Month
+day="$(echo "$line" | awk '{print $1}')"
+month="$(echo "$line" | awk '{print $2}')"
+  #Sure Monthly Conditions for Uttarayana (Feb-Jun)
+if [[ $month = Feb ]] || [[ $month = Mar ]] || [[ $month = Apr ]] || [[ $month = May ]] || [[ $month = Jun ]]; then
+  ayana=Uttarayane
+  #Sure Monthly Conditions for Daksinayana (Aug-Dec)
+elif [[ $month = Aug ]] || [[ $month = Sep ]] || [[ $month = Oct ]] || [[ $month = Nov ]] || [[ $month = Dec ]]; then
+  ayana=Daksinayane
+  #Incase if date is in Jan or Jul
+elif [[ $month = Jan ]]; then
+  if [[ $day -lt 14 ]]; then
+    ayana=Daksinayane
+  elif [[ $day -gt 15 ]]; then
+    ayana=Uttarayane
+  elif [[ $day = 14 ]] || [[ $day = 15 ]]; then
+    ayana=UNKNOWN*
+  fi
+elif [[ $month = Jul ]]; then
+  if [[ $day -lt 16 ]]; then
+    ayana=Uttarayane
+  elif [[ $day -gt 17 ]]; then
+    ayana=Daksinayane
+  elif [[ $day = 16 ]] || [[ $day = 17 ]]; then
+    ayana=UNKNOWN*
+  fi
+fi
+
+#Extract Masa Variable
+  #Create a reverse text file (bbbb.txt) from $no up
+awk 'NR < '"$no"' { print > "aaaa.txt"}' gcal.txt
+tac aaaa.txt > bbbb.txt
+  #Search bbbb.txt for headline, write to $head
+head="$(grep -m1 "Masa," bbbb.txt)"
+  #Extract the Variable
+masa="$(echo "$head" | awk '{print $1}')"
+
+#Extract Gaurabda Variable
+gaura_num="$(echo "$head" | awk '{print $4}')"
+  #------------------Convert Gaurabda Numeric to Sanskrit - Update here if 2040 or later--------------------------
+if [[ $gaura_num = 533 ]]; then
+  gaura="Tri Trimsatyuttara Pancasata Gaurabde"
+elif [[ $gaura_num = 534 ]]; then
+    gaura="Catur Trimsatyuttara Pancasata Gaurabde"
+  elif [[ $gaura_num = 535 ]]; then
+      gaura="Panca Trimsatyuttara Pancasata Gaurabde"
+    elif [[ $gaura_num = 536 ]]; then
+        gaura="Sad Trimsatyuttara Pancasata Gaurabde"
+      elif [[ $gaura_num = 537 ]]; then
+          gaura="Sapta Trimsatyuttara Pancasata Gaurabde"
+        elif [[ $gaura_num = 538 ]]; then
+            gaura="Ashta Trimsatyuttara Pancasata Gaurabde"
+          elif [[ $gaura_num = 539 ]]; then
+              gaura="Nava Trimsatyuttara Pancasata Gaurabde"
+            elif [[ $gaura_num = 540 ]]; then
+                gaura="Catvarimsatyuttara Pancasata Gaurabde"
+              elif [[ $gaura_num = 541 ]]; then
+                  gaura="Eka Catvarimsatyuttara Pancasata Gaurabde"
+                elif [[ $gaura_num = 542 ]]; then
+                    gaura="Dva Catvarimsatyuttara Pancasata Gaurabde"
+                  elif [[ $gaura_num = 543 ]]; then
+                      gaura="Tri Catvarimsatyuttara Pancasata Gaurabde"
+                    elif [[ $gaura_num = 544 ]]; then
+                        gaura="Catur Catvarimsatyuttara Pancasata Gaurabde"
+                      elif [[ $gaura_num = 545 ]]; then
+                          gaura="Panca Catvarimsatyuttara Pancasata Gaurabde"
+                        elif [[ $gaura_num = 546 ]]; then
+                            gaura="Sad Catvarimsatyuttara Pancasata Gaurabde"
+                          elif [[ $gaura_num = 547 ]]; then
+                              gaura="Sapta Catvarimsatyuttara Pancasata Gaurabde"
+                            elif [[ $gaura_num = 548 ]]; then
+                                gaura="Ashta Catvarimsatyuttara Pancasata Gaurabde"
+                              elif [[ $gaura_num = 549 ]]; then
+                                  gaura="Nava Pancasatyuttara Pancasata Gaurabde"
+                                elif [[ $gaura_num = 550 ]]; then
+                                    gaura="Pancasatyuttara Pancasata Gaurabde"
+                                  elif [[ $gaura_num = 551 ]]; then
+                                      gaura="Eka Pancasatyuttara Pancasata Gaurabde"
+                                    elif [[ $gaura_num = 552 ]]; then
+                                        gaura="Dva Pancasatyuttara Pancasata Gaurabde"
+                                      elif [[ $gaura_num = 553 ]]; then
+                                          gaura="Tri Pancasatyuttara Pancasata Gaurabde"
+                                        else
+                                          gaura=$gaura_num
+
+                                          fi
+
+#Extract Rasi Variable
+  #Search bbbb.txt for Rasi line
+rasi_line="$(grep -m1 "Sankranti" bbbb.txt)"
+  #Extract Variable from $rasi_line
+rasi="$(echo "$rasi_line" | awk '{print $2}')"
+
+#Exceptions to change the Rasi Variable - gives leeway in order to achieve 0% error on days Rasis change (Sankrantis).
+  #Dhanus-Makara
+if [[ $month = Jan ]] && [[ $day = 14 || $day = 15 ]]; then
+    rasi=Dhanus/Makara*
+  #Makara-Kumbha
+elif [[ $month = Feb ]] && [[ $day = 12 || $day = 13 ]]; then
+    rasi=Makara/Kumbha*
+  #Kumbha-Mina
+elif [[ $month = Mar ]] && [[ $day = 14 || $day = 15 ]]; then
+    rasi=Kumbha/Mina*
+  #Mina-Mesa
+elif [[ $month = Apr ]] && [[ $day = 13 || $day = 14 ]]; then
+    rasi=Mina/Mesa*
+  #Mesa-Vrsabha
+elif [[ $month = May ]] && [[ $day = 14 || $day = 15 ]]; then
+  rasi=Mesa/Vrsabha*
+  #Vrsabha-Mithuna
+elif [[ $month = Jun ]] && [[ $day = 14 || $day = 15 ]]; then
+  rasi=Vrsabha/Mithuna*
+  #Mithuna-Karka
+elif [[ $month = Jul ]] && [[ $day = 16 || $day = 17 ]]; then
+  rasi=Mirhuna/Karka*
+  #Karka-Simha
+elif [[ $month = Aug ]] && [[ $day = 16 || $day = 17 ]]; then
+  rasi=Karka/Simha*
+  #Simha-Kanya
+elif [[ $month = Sep ]] && [[ $day = 16 || $day = 17 ]]; then
+  rasi=Simha/Kanya*
+  #Kanya-Tula
+elif [[ $month = Oct ]] && [[ $day = 17 || $day = 18 ]]; then
+  rasi=Kanya/Tula*
+  #Tula-Vrscika
+elif [[ $month = Nov ]] && [[ $day = 16 || $day = 17 ]]; then
+  rasi=Tula/Vrscika*
+  #Vrscika-Dhanus
+elif [[ $month = Dec ]] && [[ $day = 15 || $day = 16 ]]; then
+  rasi=Vrsicka/Dhanus*
+fi
+
+
+#------------------Generate Ritu Variable--------------------
+
+  #Check if its Vasanta
+    #Search for closest Vasanta Pancami
+vasanta_line="$(grep -n -m1 "Vasanta Pancami" bbbb.txt)"
+    #Extract number of the Vasanta Pancami line to $vasanta_no
+vasanta_no="$(echo "$vasanta_line" | awk -F: '{print $1}')"
+
+  #Check if its Grisma
+    #Search for closest Aksaya Tritiya
+grisma_line="$(grep -n -m1 "Aksaya Trtiya" bbbb.txt)"
+    #Extract number of the Aksaya Trtiya line to $grisma_no
+grisma_no="$(echo "$grisma_line" | awk -F: '{print $1}')"
+
+  #Check if its Varsha
+    #Search for closest Guru Purnima (Start of Caturmasya)
+varsha_line="$(grep -n -m1 "Guru (Vyasa) Purnima" bbbb.txt)"
+    #Extract number of the Guru Purnima line to $varsha_no
+varsha_no="$(echo "$varsha_line" | awk -F: '{print $1}')"
+
+  #Check if its Sarad
+    #Search for closest Indira Ekadasi (this is approximate, about 5 lines off)
+sarad_line="$(grep -n -m1 "Indira Ekadasi" bbbb.txt)"
+    #Extract number of the Amavasya line to $sarad_no
+sarad_no="$(echo "$sarad_line" | awk -F: '{print $1}')"
+#Update $sarad_no because its 5 lines off (sometimes 6)
+sarad_no=$(( $sarad_no + 7 ))
+
+  #Check if its Hemanta
+    #Search for closest Krsna Saradiya Rasayatra (Rasa Purnima)
+hemanta_line="$(grep -n -m1 "Saradiya Rasayatra" bbbb.txt)"
+    #Extract number of the Rasa Purnima line to $hemanta_no
+hemanta_no="$(echo "$hemanta_line" | awk -F: '{print $1}')"
+
+  #Check if its Sisira
+    #Search for closest Odana sasti
+sisira_line="$(grep -n -m1 "Odana sasthi" bbbb.txt)"
+    #Extract number of the Odana sasti line to $hemanta_no
+sisira_no="$(echo "$sisira_line" | awk -F: '{print $1}')"
+
+#Loop to find which [ritu]_no is smallest (thus closest beginning of a new season)
+ritu_array=("$vasanta_no" "$grisma_no" "$varsha_no" "$sarad_no" "$hemanta_no" "$sisira_no")
+
+min=${ritu_array[0]}
+
+# Loop through all elements in the array
+for i in "${ritu_array[@]}"
+do
+
+  # Update min if applicable
+  if [[ "$i" -lt "$min" ]]; then
+      min="$i"
+  fi
+done
+
+  #Turning $minv to $ritu
+if [[ $min = "$vasanta_no" ]]; then
+  ritu=Vasanta
+elif [[ $min = "$grisma_no" ]]; then
+  ritu=Grisma
+elif [[ $min = "$varsha_no" ]]; then
+  ritu=Varsa
+elif [[ $min = "$sarad_no" ]]; then
+  ritu=Sarad
+elif [[ $min = "$hemanta_no" ]]; then
+  ritu=Hemanta
+elif [[ $min = "$sisira_no" ]]; then
+  ritu=Sisira
+fi
+
+#Exceptions to change the Ritu Variable - gives leeway in order to achieve 0% error on days ritus change.
+  #If its on Vasanta Pancami
+if [[ $masa = Madhava && $paksa = Gaura && $tithi = Pancami ]]; then
+      ritu=Vasanta
+  #If its on Aksaya Tritiya
+elif [[ $masa = Madhusudana && $paksa = Gaura && $tithi = Tritiya ]]; then
+      ritu=Grisma
+  #If its on Guru Purnima
+elif [[ $masa = Vamana && $paksa = Gaura && $tithi = Purnima ]]; then
+      ritu=Varsa
+  #If its on Padmanabha Amavasya (Sarad Beginning)---(Allow for the day after)
+elif [[ $masa = Padmanabha && $paksa = Krishna && $tithi = Amavasya ]]; then
+      ritu=Sarad
+elif [[ $masa = Padmanabha && $paksa = Gaura && $tithi = Pratipat ]]; then
+      ritu=Sarad
+  #Just incase - check that the two days before are still Varsa
+elif [[ $masa = Padmanabha && $paksa = Krishna && $tithi = Trayodasi ]]; then
+      ritu=Varsa
+elif [[ $masa = Padmanabha && $paksa = Krishna && $tithi = Caturdasi ]]; then
+      ritu=Varsa
+  #If its on Rasa Purnima
+elif [[ $masa = Padmanabha && $paksa = Gaura && $tithi = Purnima ]]; then
+      ritu=Hemanta
+  #If its on Odana Sasthi
+elif [[ $masa = Kesava && $paksa = Gaura && $tithi = Sasti ]]; then
+      ritu=Sisira
+  fi
+
+#Failsafe for Ritu if the calendar doesnt start early enough (if $min was unset or empty)
+if [ -z "$min" ]; then
+  ritu=UNKNOWN*
+else
+  :
+fi
+
+#Removing Temporary files
+rm aaaa.txt
+rm bbbb.txt
+
+#Check if overwriting
+FILE1="$date".txt
+if test -f "$FILE1"; then
+ echo -e "\n Sankalpa for this date already exists. It will be overwritten."
+  else
+  echo -e "\n"
+    fi
+
+#Writing to file
+echo "This Sankalpa is Generated by SanGen 1.0, for the following date:" > "$date".txt
+echo "$date" >> "$date".txt
+echo -e "--- \n" >> "$date".txt
+echo "$gaura" >> "$date".txt
+echo "$ayana" >> "$date".txt
+echo "$ritu Rtau" >> "$date".txt
+echo "$masa Mase" >> "$date".txt
+echo "$paksa Pakse" >> "$date".txt
+echo "$rasi Rasi-Stithe-Bhaskare" >> "$date".txt
+echo "$tithi Tithau" >> "$date".txt
+echo "$vara Varanvitayam" >> "$date".txt
+echo "$nak Naksatra-Samyutayam" >> "$date".txt #Glitch - $nak and "Naksatra Samyutayam" print on different lines.
+
+
+#If Ayana is unknown...
+if [[ $ayana = UNKNOWN* ]]; then
+  echo -e "\n *ATTENTION!!! Ayana (course of the sun) is unknown. The date is very close to or on either Makara or Karka Sankranti. Please refer to the calender to clarify the exact ayana." >> "$date".txt
+fi
+
+#If Rasi is unknown... (ends with *)
+if [[ "$rasi" == *\* ]] ; then
+  echo -e "\n *ATTENTION!!! Rasi (solar sign) is not certain. The date is very close to or on a Sankranti. Please refer to the calender to clarify the exact rasi. It is one of the two shown above." >> "$date".txt
+fi
+
+#If Ritu is unknown... (calendar starts too late)
+if [[ $ritu = UNKNOWN* ]]; then
+  echo -e "\n *ATTENTION!!! Ritu (season) is unknown. This is because the calendar starts less than a year before $date. Please fix this to calculate properly, and to ensure that ther rest of the parameters are also correct." >> "$date".txt
+fi
+
+
+#Success Messages
+echo -e "\n Sankalpa made succesfully. Opening text editor..."
+echo -e "The file can later be found in the SanGen folder."
+echo -e "It is named ""$date"".txt"
+echo -e "Closing this terminal window will also close the text editor."
+echo -e "Please wait for 5 seconds or press Enter to continue."
+read -t 5 -s ID
+echo "Text editor opened."
+xed "$date".txt
+sleep 300000
+echo -e "\n Exiting..."
+sleep 3
