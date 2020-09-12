@@ -1,6 +1,6 @@
 Hare Krishna! Jaya Prabhupada!
 
-**Welcome to SanGen 1.0.**
+**Welcome to SanGen 1.1.**
 
 This Sankalpa Generator has been developed by Kripa Siddha Das. Please read this README file carefully if this is the first time you are using this program, or if you are having any technical difficulties.
 
@@ -57,6 +57,10 @@ While $nak (the variable denoting the naksatra) is properly defined and called, 
 This is the only place that this happens, and there is no apparent reason. The rest of the variables print absolutely normally, along with their trailing text, for example:
 
 `echo "$vara Varanvitayam" >> "$date".txt`
+
+**Version 1.1 - Glitch - Line 50**
+
+`date`command in some versions of Linux prints in different formats. Figure out a way to fix that.
 
 **Should figure out a way** to automatically prompt user if the calendar starts less than a year ago, then force-exit. 
 
